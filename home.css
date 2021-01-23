@@ -30,6 +30,7 @@
   right: -.35em;
   position: absolute;
   font-size: .95em;
+  color: red;
 }
 
 .vjs-trim-end:before {
@@ -38,6 +39,7 @@
   right: -.7em;
   position: absolute;
   font-size: .95em;
+  color: red;
 }
 
 .vjs-trim-control { /* vjs-volume-control */

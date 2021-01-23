@@ -2,8 +2,8 @@
 var Component = videojs.getComponent('Component');
 var Slider = videojs.getComponent('Slider');
 var Player = videojs.getComponent('Player');
-//var player = videojs('my-player');
-//player.cache_.startTrimTime = 0;
+
+var ProgressControl = videojs.getComponent('ProgressControl');
 
 const clamp = function(number, min, max) {
   number = Number(number);
@@ -82,90 +82,24 @@ var createPlayer = function(id, options, ready) {
 
 player = createPlayer('my-player');
 
-//console.log(player.cache_)
-
-class TrimControl extends Component {
-  constructor(player, options = {}) {
-    options.vertical = options.vertical || false;
-    if (typeof options.trimBar === 'undefined') {
-      options.trimBar = options.trimBar || {};
-      options.trimBar.vertical = options.vertical;
-    }
-    super(player,options);
-  }
-  createEl() {
-
-    return super.createEl('div', {
-      className: "vjs-trim-control vjs-control vjs-volume-horizontal"
-    });
-  }
-}
-
-class TrimBar extends Slider {
+class CustomProgressControl extends ProgressControl {
   constructor(player, options) {
     super(player, options);
   }
-  createEl() {
-    return super.createEl('div', {
-      className: 'vjs-slider-bar vjs-trim-bar'
-    }, {
-      'aria-label': this.localize('Volume Level'),
-      'aria-live': 'polite'
-    });
-  }
-  getPercent() {
-    return this.player_.startTrim();
-  }
-  handleMouseDown(event) {
-    if (!videojs.dom.isSingleLeftClick(event)) {
-      return;
-    }
-    //console.log("mouse down ! (trimBar)")
-    //super.handleMouseDown(event);
-  }
+
   handleMouseMove(event) {
-    if (!videojs.dom.isSingleLeftClick(event)) {
+    const seekBar = this.getChild('seekBar');
+    if (!seekBar) {
       return;
     }
-    //console.log("mouse move ! (trimBar)");
-    this.player_.startTrim(this.calculateDistance(event));
-  }
-
-  calculateDistance(event) {
-    const position = videojs.dom.getPointerPosition(this.el_, event);
-
-    if (this.vertical()) {
-      return position.y;
+    const seekBarEl = seekBar.el();
+    let seekBarPoint = videojs.dom.getPointerPosition(seekBarEl, event).x;
+    seekBarPoint = clamp(seekBarPoint, 0, 1);
+    if(seekBarPoint < this.player_.startTrim() || seekBarPoint > this.player_.endTrim()){
+      return
+    }else{
+      super.handleMouseMove(event);
     }
-    return position.x;
-  }
-
-  update() {
-    if (!this.el_ || !this.bar) {
-      return;
-    }
-    const progress = this.getProgress();
-
-    if (progress === this.player_.cache_.startTrimTime_) {
-      return progress;
-    }
-    //console.log("progress = " + progress)
-    //console.log("this.player_.startTrimTime_ = " + this.player_.cache_.startTrimTime_)
-    this.player_.cache_.startTrimTime_ = progress;
-
-    this.requestNamedAnimationFrame('Slider#update', () => {
-      // Set the new bar width or height
-      const sizeKey = this.vertical() ? 'bottom' : 'left';
-
-      // Convert to a percentage for css value
-      //this.bar.el().style[sizeKey] = 100 - (progress * 100).toFixed(2) + '%'; keep this for endtrim
-      this.bar.el().style[sizeKey] = (progress * 100).toFixed(2) + '%';
-    });
-
-    return progress;
-  }
-  getProgress() {
-    return Number(clamp(this.getPercent(), 0, 1).toFixed(4));
   }
 }
 
@@ -286,25 +220,10 @@ class TrimButton extends Component {
  */
 TrimButton.prototype.startTrimPlayerEvent = 'starttrimchange';
 TrimButton.prototype.endTrimPlayerEvent = 'endtrimchange';
-
-Component.registerComponent('TrimControl', TrimControl);
-Component.registerComponent('TrimBar', TrimBar);
 Component.registerComponent('TrimButton', TrimButton);
+Component.registerComponent('CustomProgressControl',CustomProgressControl)
 
-TrimControl.prototype.options_ = {
-  children: [
-    'trimBar'
-  ]
-};
-
-TrimBar.prototype.options_ = {
-  children: ['TrimButton', {
-    name: 'TrimButton',
-    orientationRight: true
-  }, {
-    name: 'TrimButton',
-    orientationRight: false
-  }],
-  barName: 'TrimButton'
-};
-player.getChild("ControlBar").addChild("TrimControl");
+player.getChild("ControlBar").addChild('CustomProgressControl')
+Seekbar = player.getChild("ControlBar").getChild('CustomProgressControl').getChild("SeekBar")
+Seekbar.addChild("TrimButton",{orientationRight: true})
+Seekbar.addChild("TrimButton",{orientationRight: false})
