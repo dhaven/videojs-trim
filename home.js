@@ -2,6 +2,7 @@
 var Component = videojs.getComponent('Component');
 var Slider = videojs.getComponent('Slider');
 var Player = videojs.getComponent('Player');
+var SeekBar = videojs.getComponent('SeekBar');
 
 var ProgressControl = videojs.getComponent('ProgressControl');
 
@@ -88,16 +89,103 @@ class CustomProgressControl extends ProgressControl {
   }
 
   handleMouseMove(event) {
-    const seekBar = this.getChild('seekBar');
+    const seekBar = this.getChild('CustomSeekBar');
+    if (!seekBar) {
+      return;
+    }
+    const playProgressBar = seekBar.getChild('playProgressBar');
+    const mouseTimeDisplay = seekBar.getChild('mouseTimeDisplay');
+
+    if (!playProgressBar && !mouseTimeDisplay) {
+      return;
+    }
+    const seekBarEl = seekBar.el();
+    const seekBarRect = videojs.dom.findPosition(seekBarEl);
+    let seekBarPoint = videojs.dom.getPointerPosition(seekBarEl, event).x;
+    seekBarPoint = clamp(seekBarPoint, 0, 1);
+    if(seekBarPoint < this.player_.startTrim() || seekBarPoint > this.player_.endTrim()){
+      return
+    }else{
+      if (mouseTimeDisplay) {
+        mouseTimeDisplay.update(seekBarRect, seekBarPoint);
+      }
+
+      if (playProgressBar) {
+        playProgressBar.update(seekBarRect, seekBar.getProgress());
+      }
+    }
+  }
+
+  handleMouseSeek(event) {
+    const seekBar = this.getChild('CustomSeekBar');
     if (!seekBar) {
       return;
     }
     const seekBarEl = seekBar.el();
     let seekBarPoint = videojs.dom.getPointerPosition(seekBarEl, event).x;
     seekBarPoint = clamp(seekBarPoint, 0, 1);
-    if(seekBarPoint < this.player_.startTrim() || seekBarPoint > this.player_.endTrim()){
-      return
+    if(seekBarPoint <= this.player_.startTrim() || seekBarPoint >= this.player_.endTrim()){
+      console.log("trigger seek event outside bounds")
     }else{
+      console.log("trigger seek event inside bounds")
+      seekBar.handleMouseMove(event);
+    }
+  }
+  handleMouseDown(event) {
+    const doc = this.el_.ownerDocument;
+    const seekBar = this.getChild('CustomSeekBar');
+
+    const seekBarEl = seekBar.el();
+    let seekBarPoint = videojs.dom.getPointerPosition(seekBarEl, event).x;
+    seekBarPoint = clamp(seekBarPoint, 0, 1);
+    if(seekBarPoint <= this.player_.startTrim() || seekBarPoint >= this.player_.endTrim()){
+      console.log("trigger mouse down event outside bounds")
+    }else{
+      console.log("trigger mouse down event inside bounds")
+      seekBar.handleMouseDown(event);
+      return;
+    }
+
+    this.on(doc, 'mousemove', this.throttledHandleMouseSeek);
+    this.on(doc, 'touchmove', this.throttledHandleMouseSeek);
+    this.on(doc, 'mouseup', this.handleMouseUp);
+    this.on(doc, 'touchend', this.handleMouseUp);
+  }
+  handleMouseUp(event) {
+    const doc = this.el_.ownerDocument;
+    const seekBar = this.getChild('CustomSeekBar');
+
+    if (seekBar) {
+      seekBar.handleMouseUp(event);
+    }
+
+    this.off(doc, 'mousemove', this.throttledHandleMouseSeek);
+    this.off(doc, 'touchmove', this.throttledHandleMouseSeek);
+    this.off(doc, 'mouseup', this.handleMouseUp);
+    this.off(doc, 'touchend', this.handleMouseUp);
+  }
+}
+
+class CustomSeekBar extends SeekBar {
+  constructor(player, options) {
+    super(player, options);
+  }
+
+  update(event) {
+    if(this.getProgress() >= this.player_.endTrim()){
+      this.player_.pause();
+    }else{
+      super.update(event);
+    }
+  }
+  handleMouseMove(event) {
+    const seekBarEl = this.el();
+    let seekBarPoint = videojs.dom.getPointerPosition(seekBarEl, event).x;
+    seekBarPoint = clamp(seekBarPoint, 0, 1);
+    if(seekBarPoint <= this.player_.startTrim() || seekBarPoint >= this.player_.endTrim()){
+      console.log("mouse moved outside bounds")
+    }else{
+      console.log("mouse moved inside bounds")
       super.handleMouseMove(event);
     }
   }
@@ -220,10 +308,29 @@ class TrimButton extends Component {
  */
 TrimButton.prototype.startTrimPlayerEvent = 'starttrimchange';
 TrimButton.prototype.endTrimPlayerEvent = 'endtrimchange';
+
+CustomProgressControl.prototype.options_ = {
+  children: ['CustomSeekBar']
+};
+
+CustomSeekBar.prototype.options_ = {
+  children: [
+    'loadProgressBar',
+    'playProgressBar'
+  ],
+  barName: 'playProgressBar'
+};
+
+// MouseTimeDisplay tooltips should not be added to a player on mobile devices
+if (!videojs.browser.IS_IOS && !videojs.browser.IS_ANDROID) {
+  CustomSeekBar.prototype.options_.children.splice(1, 0, 'mouseTimeDisplay');
+}
+
 Component.registerComponent('TrimButton', TrimButton);
+Component.registerComponent('CustomSeekBar', CustomSeekBar);
 Component.registerComponent('CustomProgressControl',CustomProgressControl)
 
 player.getChild("ControlBar").addChild('CustomProgressControl')
-Seekbar = player.getChild("ControlBar").getChild('CustomProgressControl').getChild("SeekBar")
+Seekbar = player.getChild("ControlBar").getChild('CustomProgressControl').getChild("CustomSeekBar")
 Seekbar.addChild("TrimButton",{orientationRight: true})
 Seekbar.addChild("TrimButton",{orientationRight: false})
