@@ -1,0 +1,25 @@
+{
+  "name": "webpack-babel-test",
+  "version": "1.0.0",
+  "description": "test compile",
+  "main": "main.js",
+  "scripts": {
+    "build": "webpack"
+  },
+  "author": "dhaven",
+  "license": "ISC",
+  "devDependencies": {
+    "@babel/core": "^7.12.10",
+    "@babel/plugin-proposal-class-properties": "^7.12.1",
+    "@babel/preset-env": "^7.12.11",
+    "babel-core": "^6.26.3",
+    "babel-loader": "^8.2.2",
+    "babel-preset-env": "^1.7.0",
+    "video.js": "^7.10.2",
+    "webpack": "^5.17.0",
+    "webpack-cli": "^4.4.0"
+  },
+  "dependencies": {
+    "babel-polyfill": "^6.26.0"
+  }
+}
